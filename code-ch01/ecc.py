@@ -65,7 +65,10 @@ class FieldElement:
         # 1/n == pow(n, p-2, p)
         # We return an element of the same class
         raise NotImplementedError
-
+        
+    # 2つのFieldElementオブジェクトが互いに等しくないことを確認する関数
+    def __ne__ (self, other):
+        return not (self == other)
 
 class FieldElementTest(TestCase):
 

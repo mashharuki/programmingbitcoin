@@ -14,11 +14,10 @@ def run(test):
     TextTestRunner().run(suite)
 
 
-# tag::source4[]
+# ハッシュ操作用関数
 def hash160(s):
     '''sha256 followed by ripemd160'''
     return hashlib.new('ripemd160', hashlib.sha256(s).digest()).digest()  # <1>
-# end::source4[]
 
 
 def hash256(s):
@@ -61,20 +60,17 @@ def decode_base58(s):
         raise ValueError('bad address: {} {}'.format(checksum, hash256(combined[:-4])[:4]))
     return combined[1:-4]
 
-
+# バイトを受け取り、リトルエンディアンとして解釈して数値を返す関数。
 def little_endian_to_int(b):
-    '''little_endian_to_int takes byte sequence as a little-endian number.
-    Returns an integer'''
+    '''little_endian_to_int takes byte sequence as a little-endian number. Returns an integer'''
     # use int.from_bytes()
-    raise NotImplementedError
+    return int.from_bytes(b, 'little')
 
-
+# バイトを受け取り、ビッグ　エンディアンとして解釈して数値を返す関数。
 def int_to_little_endian(n, length):
-    '''endian_to_little_endian takes an integer and returns the little-endian
-    byte sequence of length'''
+    '''endian_to_little_endian takes an integer and returns the little-endian byte sequence of length'''
     # use n.to_bytes()
-    raise NotImplementedError
-
+    return n.from_bytes(length, 'little')
 
 class HelperTest(TestCase):
 

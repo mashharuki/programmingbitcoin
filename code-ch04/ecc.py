@@ -404,26 +404,29 @@ class S256Point(Point):
         total = u * G + v * self
         return total.x.num == sig.r
 
-    # tag::source1[]
+    # 圧縮フォーマット生成
     def sec(self, compressed=True):
         '''returns the binary version of the SEC format'''
         if compressed:
+            # yが偶数か奇数かで場合分け(プレフィックスバイトを変更する。　)
             if self.y.num % 2 == 0:
                 return b'\x02' + self.x.num.to_bytes(32, 'big')
             else:
                 return b'\x03' + self.x.num.to_bytes(32, 'big')
         else:
-            return b'\x04' + self.x.num.to_bytes(32, 'big') + \
-                self.y.num.to_bytes(32, 'big')
-    # end::source1[]
+            # 圧縮フォーマットで生成
+            return b'\x04' + self.x.num.to_bytes(32, 'big') + self.y.num.to_bytes(32, 'big')
+    
 
     # tag::source5[]
     def hash160(self, compressed=True):
         return hash160(self.sec(compressed))
-
+    
+    # アドレス作成用関数
     def address(self, compressed=True, testnet=False):
         '''Returns the address string'''
         h160 = self.hash160(compressed)
+        # テストネット用とメインネット用ので頭につけるものを変更する。
         if testnet:
             prefix = b'\x6f'
         else:

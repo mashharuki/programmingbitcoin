@@ -252,8 +252,6 @@ class PointTest(TestCase):
         a = Point(x=-1, y=1, a=5, b=7)
         self.assertEqual(a + a, Point(x=18, y=-77, a=5, b=7))
 
-
-# tag::source2[]
 class ECCTest(TestCase):
 
     def test_on_curve(self):
@@ -271,29 +269,38 @@ class ECCTest(TestCase):
             y = FieldElement(y_raw, prime)
             with self.assertRaises(ValueError):
                 Point(x, y, a, b)  # <1>
-    # end::source2[]
 
+    # 点の加算を行う関数
     def test_add(self):
-        # tests the following additions on curve y^2=x^3-7 over F_223:
-        # (192,105) + (17,56)
-        # (47,71) + (117,141)
-        # (143,98) + (76,66)
+        # 式 y^2 = x^3 + 7
         prime = 223
         a = FieldElement(0, prime)
         b = FieldElement(7, prime)
-
+    
+        # (192,105) + (17,56)
+        # (47,71) + (117,141)
+        # (143,98) + (76,66)
         additions = (
-            # (x1, y1, x2, y2, x3, y3)
             (192, 105, 17, 56, 170, 142),
             (47, 71, 117, 141, 60, 139),
             (143, 98, 76, 66, 47, 71),
         )
 
-        # loop over additions
-        # initialize x's and y's as FieldElements
-        # create p1, p2 and p3 as Points
-        # check p1+p2==p3
-        raise NotImplementedError
+        # 点の加算を実施する。
+        for x1, y1, x2, y2, x3, y3  in additions:
+            # initialize x's and y's as FieldElements
+            newX1= FieldElement(x1, prime)
+            newY1= FieldElement(y1, prime)
+            newX2 = FieldElement(x2, prime)
+            newY2 = FieldElement(y2, prime)
+            newX3 = FieldElement(x3, prime)
+            newY3 = FieldElement(y3, prime) 
+            # create p1, p2 and p3 as Points
+            p1 = Point(newX1, newY1, a, b)
+            p2 = Point(newX2, newY2, a, b)
+            p3 = Point(newX3, newY3, a, b)
+            # check p1+p2==p3
+            self.assertEqual((p1 + p2), p3)
 
     def test_rmul(self):
         # tests the following scalar multiplications
@@ -448,7 +455,8 @@ class Signature:
 
 # tag::source13[]
 class PrivateKey:
-
+    
+    # 秘密鍵生成
     def __init__(self, secret):
         self.secret = secret
         self.point = secret * G  # <1>
@@ -457,7 +465,7 @@ class PrivateKey:
         return '{:x}'.format(self.secret).zfill(64)
     # end::source13[]
 
-    # tag::source14[]
+    # 署名関数
     def sign(self, z):
         k = self.deterministic_k(z)  # <1>
         r = (k * G).x.num

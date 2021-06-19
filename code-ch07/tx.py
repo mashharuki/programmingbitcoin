@@ -157,33 +157,58 @@ class Tx:
         return input_sum - output_sum
     # end::source1[]
 
+    # 署名検証するためのハッシュ値を生成する関数
     def sig_hash(self, input_index):
-        '''Returns the integer representation of the hash that needs to get
-        signed for index input_index'''
-        # start the serialization with version
-        # use int_to_little_endian in 4 bytes
-        # add how many inputs there are using encode_varint
-        # loop through each input using enumerate, so we have the input index
-            # if the input index is the one we're signing
-            # the previous tx's ScriptPubkey is the ScriptSig
-            # Otherwise, the ScriptSig is empty
-            # add the serialization of the input with the ScriptSig we want
-        # add how many outputs there are using encode_varint
-        # add the serialization of each output
-        # add the locktime using int_to_little_endian in 4 bytes
-        # add SIGHASH_ALL using int_to_little_endian in 4 bytes
-        # hash256 the serialization
-        # convert the result to an integer using int.from_bytes(x, 'big')
-        raise NotImplementedError
+        '''Returns the integer representation of the hash that needs to get　signed for index input_index'''
+        # トランザクションのバージョン情報をシリアライズする。
+        s = int_to_little_endian(self.version ,4)
+        # インプットトランザクションの数を追加する。
+        s += encode_varint(len(self.tx_ins))
+        # インプットトランザクションごとにループする。
+        for i, tx_in in enumerate(self.tx_ins):
+            # インプットインデックスが1の場合
+            if i == input_index :
+                # トランザクションインプットをシリアライズする。
+                s += TxIn(
+                    prev_tx = tx_in.prev_tx, 
+                    prev_index = tx_in.prev_index,
+                    script_sig = tx_in.script_pubkey(self.testnet),
+                    sequence = tx_in.sequence,
+                 ).serialize()
+            else : # 1以外の場合
+                # トランザクションインプットをシリアライズする。
+                s += TxIn(
+                    prev_tx = tx_in.prev_tx, 
+                    prev_index = tx_in.prev_index,
+                    sequence = tx_in.sequence,
+                 ).serialize()
+        # アウトプットトランザクションの数をを追加する。
+        s += encode_varint(len(self.tx_outs))
+        # アウトプットトランザクションをシリアライズして追加する。
+        for tx_out in self.tx_outs:
+            s += tx_out.serialize()
+        # ロック時間を追加する。
+        s += int_to_little_endian(self.locktime, 4)
+        # ハッシュタイプ(ここでは、SIGHASH_ALL)を追加する。　
+        s += int_to_little_endian(SIGHASH_ALL , 4)
+        # hash256 で256ビットのハッシュ値を生成
+        hsh = hash256(s)
+        # ビッグエンディアン整数として返す。
+        return int.from_bytes(hsh, 'big')
 
+    # インプットトランザクションを確認するための関数
     def verify_input(self, input_index):
         '''Returns whether the input has a valid signature'''
-        # get the relevant input
-        # grab the previous ScriptPubKey
+        # 関連するインプットを取得する。
+        tx_in = self.tx_ins[input_index]
+        # 前のトランザクションのScriptPubKeyを取得する。
+        script_key = tx_in.script_pubkey(testnet = self.testnet)
         # get the signature hash (z)
-        # combine the current ScriptSig and the previous ScriptPubKey
-        # evaluate the combined script
-        raise NotImplementedError
+        z = self.sig_hash(input_index) 
+        # ScriptSigとScriptPubKeyを結合してScriptを作成する。
+        script = tx_in.script_sig + script_key
+        # 署名検証を実行する。
+        return script.evaluate(z)
 
     # tag::source2[]
     def verify(self):
@@ -196,16 +221,20 @@ class Tx:
         return True
     # end::source2[]
 
+    # トランザクションを署名する関数
     def sign_input(self, input_index, private_key):
-        # get the signature hash (z)
-        # get der signature of z from private key
-        # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
-        # calculate the sec
-        # initialize a new script with [sig, sec] as the cmds
-        # change input's script_sig to new script
+        # インプットトランザクションのハッシュ値を生成
+        z = self.sig_hash(input_index)
+        # DERフォーマットの署名を生成する。
+        der = private_key.sign(z).der()
+        # DERフォーマットとハッシュタイプを結合する。
+        sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+        # SECフォーマットの秘密鍵を生成する。
+        sec = private_key.point.sec()
+        # Scriptを生成する。
+        self.tx_ins[input_index].script_sig  = Script([sig, sec])
         # return whether sig is valid using self.verify_input
-        raise NotImplementedError
-
+        return self.verify_input(input_index)
 
 class TxIn:
 

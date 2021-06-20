@@ -6,10 +6,11 @@ from helper import (
     hash256,
     int_to_little_endian,
     little_endian_to_int,
+    bits_to_target,
 )
 
 
-# tag::source1[]
+# ブロックに関するクラス
 class Block:
 
     def __init__(self, version, prev_block, merkle_root, timestamp, bits, nonce):
@@ -19,56 +20,74 @@ class Block:
         self.timestamp = timestamp
         self.bits = bits
         self.nonce = nonce
-    # end::source1[]
 
+    # パースする関数
     @classmethod
     def parse(cls, s):
         '''Takes a byte stream and parses a block. Returns a Block object'''
         # s.read(n) will read n bytes from the stream
-        # version - 4 bytes, little endian, interpret as int
-        # prev_block - 32 bytes, little endian (use [::-1] to reverse)
-        # merkle_root - 32 bytes, little endian (use [::-1] to reverse)
+        # version 
+        version = little_endian_to_int(s.read(4))
+        # prev_block 
+        prev_block = s.read(32)[::-1]
+        # merkle_root 
+        merkle_root  = s.read(32)[::-1]
         # timestamp - 4 bytes, little endian, interpret as int
-        # bits - 4 bytes
-        # nonce - 4 bytes
-        # initialize class
-        raise NotImplementedError
+        timestamp = little_endian_to_int(s.read(4))
+        # bits 
+        bits = s.read(4)
+        # nonce 
+        nonce = s.read(4)
+        # ブロッククラスを初期化して返す。
+        return cls(version, prev_block, merkle_root, timestamp, bits, nonce)
 
+    # シリアライズするための関数
     def serialize(self):
         '''Returns the 80 byte block header'''
         # version - 4 bytes, little endian
+        result = int_to_little_endian(self.version, 4)
         # prev_block - 32 bytes, little endian
+        result += self.prev_block[::-1]
         # merkle_root - 32 bytes, little endian
+        result += self.merkle_root[::-1]
         # timestamp - 4 bytes, little endian
+        result += int_to_little_endian(self.timestamp, 4)
         # bits - 4 bytes
+        result += self.bits
         # nonce - 4 bytes
-        raise NotImplementedError
+        result +=  self.nonce
+        return result
 
+    # ハッシュ値を生成するための関数 
     def hash(self):
         '''Returns the hash256 interpreted little endian of the block'''
-        # serialize
+        # serializeする
+        s = self.serialize()
         # hash256
+        sha = hash256(s)
         # reverse
-        raise NotImplementedError
+        return sha[::-1]
 
+    # BIP0009であることを確認する関数
     def bip9(self):
         '''Returns whether this block is signaling readiness for BIP9'''
         # BIP9 is signalled if the top 3 bits are 001
         # remember version is 32 bytes so right shift 29 (>> 29) and see if
-        # that is 001
-        raise NotImplementedError
+        return self.version >> 29 == 0b001
 
+    # BIP0091であることを確認する関数    
     def bip91(self):
         '''Returns whether this block is signaling readiness for BIP91'''
         # BIP91 is signalled if the 5th bit from the right is 1
-        # shift 4 bits to the right and see if the last bit is 1
-        raise NotImplementedError
+        # 4ビット右にシフトして右端が1であることを確認する
+        return self.version >> 4 & 1 == 1
 
+    # BIP0141であることを確認する関数  
     def bip141(self):
         '''Returns whether this block is signaling readiness for BIP141'''
         # BIP91 is signalled if the 2nd bit from the right is 1
-        # shift 1 bit to the right and see if the last bit is 1
-        raise NotImplementedError
+        # 1ビット右にシフトして右端が1であることを確認する
+        return self.version >> 1 & 1 == 1
 
     def target(self):
         '''Returns the proof-of-work target based on the bits'''
@@ -76,16 +95,20 @@ class Block:
 
     def difficulty(self):
         '''Returns the block difficulty based on the bits'''
-        # note difficulty is (target of lowest difficulty) / (self's target)
         # lowest difficulty has bits that equal 0xffff001d
-        raise NotImplementedError
+        # note difficulty is (target of lowest difficulty) / (self's target)
+        difficulty = 0xffff * 256**(0x1d - 3) / self.target    
+        return difficulty
 
+    # PoWが有効かどうかチェックするための関数
     def check_pow(self):
         '''Returns whether this block satisfies proof of work'''
         # get the hash256 of the serialization of this block
+        sha = hash256(self.serialize())
         # interpret this hash as a little-endian number
-        # return whether this integer is less than the target
-        raise NotImplementedError
+        proof = little_endian_to_int(sha)
+        # proofがtarget以下になっていることを確認する。
+        return proof < self.target()
 
 
 class BlockTest(TestCase):

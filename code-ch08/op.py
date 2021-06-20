@@ -688,40 +688,65 @@ def op_checksigverify(stack, z):
     return op_checksig(stack, z) and op_verify(stack)
 
 
-# tag::source1[]
+# マルチシグトランザクションの署名を検証する関数
 def op_checkmultisig(stack, z):
+    # 要素数が1以上であることを確認する。
     if len(stack) < 1:
         return False
+    # スタックス数を格納(公開鍵の数)
     n = decode_num(stack.pop())
     if len(stack) < n + 1:
         return False
+    # 公開鍵用の配列
     sec_pubkeys = []
     for _ in range(n):
+        # 公開鍵を格納する。
         sec_pubkeys.append(stack.pop())
+    #　スタック数を格納する。(署名の数) 
     m = decode_num(stack.pop())
     if len(stack) < m + 1:
         return False
+    # 署名用の配列
     der_signatures = []
     for _ in range(m):
-        der_signatures.append(stack.pop()[:-1])  # <1>
+        # 署名を格納する。
+        der_signatures.append(stack.pop()[:-1]) 
     stack.pop()  # <2>
     try:
-        # end::source1[]
+        # parse後に格納するための配列を用意する。
+        points = []
+        sigs = []
         # parse all the points
+        for sec_pubkey in sec_pubkeys :
+            point = S256Point.parse(sec_pubkey)
+            points.append(point)
         # parse all the signatures
-        # loop through the signatures
+        for der_signature in der_signatures :
+            sig = Signature.parse(der_signature)
+            sigs.append(sig)
+        # 署名ごとにループする。
+        for sig in sigs :
             # if we have no more points, signatures are no good
+            if len(points) == 0 :
+                LOGGER.info("signatures no good or not in right order")
+                return False
+            # フラグ用の変数を用意する。
+            success = False
             # we loop until we find the point which works with this signature
+            while points :
                 # get the current point from the list of points
+                point = points.pop(0)
                 # we check if this signature goes with the current point
+                if point.verify(z, sig) :
+                    success = True
+                    break
+                if not success :
+                    return False
         # the signatures are valid, so push a 1 to the stack
-        # tag::source1[]
-        raise NotImplementedError  # <3>
+        stack.append(encode_num(1))
     except (ValueError, SyntaxError):
         return False
     return True
-# end::source1[]
-
 
 def op_checkmultisigverify(stack, z):
     return op_checkmultisig(stack, z) and op_verify(stack)

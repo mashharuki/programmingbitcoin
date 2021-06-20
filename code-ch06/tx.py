@@ -156,8 +156,72 @@ class Tx:
             output_sum += tx_out.amount
         # fee is input sum - output sum
         return input_sum - output_sum
+    
+    # 署名検証するためのハッシュ値を生成する関数
+    def sig_hash(self, input_index):
+        '''Returns the integer representation of the hash that needs to get　signed for index input_index'''
+        # トランザクションのバージョン情報をシリアライズする。
+        s = int_to_little_endian(self.version ,4)
+        # インプットトランザクションの数を追加する。
+        s += encode_varint(len(self.tx_ins))
+        # インプットトランザクションごとにループする。
+        for i, tx_in in enumerate(self.tx_ins):
+            # インプットインデックスが1の場合
+            if i == input_index :
+                # トランザクションインプットをシリアライズする。
+                s += TxIn(
+                    prev_tx = tx_in.prev_tx, 
+                    prev_index = tx_in.prev_index,
+                    script_sig = tx_in.script_pubkey(self.testnet),
+                    sequence = tx_in.sequence,
+                 ).serialize()
+            else : # 1以外の場合
+                # Script_sigを空にする。
+                script_sig = None
+                # トランザクションインプットをシリアライズする。
+                s += TxIn(
+                    prev_tx = tx_in.prev_tx, 
+                    prev_index = tx_in.prev_index,
+                    sequence = tx_in.sequence,
+                 ).serialize()
+        # アウトプットトランザクションの数をを追加する。
+        s += encode_varint(len(self.tx_outs))
+        # アウトプットトランザクションをシリアライズして追加する。
+        for tx_out in self.tx_outs:
+            s += tx_out.serialize()
+        # ロック時間を追加する。
+        s += int_to_little_endian(self.locktime, 4)
+        # ハッシュタイプ(ここでは、SIGHASH_ALL)を追加する。　
+        s += int_to_little_endian(SIGHASH_ALL , 4)
+        # hash256 で256ビットのハッシュ値を生成
+        hsh = hash256(s)
+        # ビッグエンディアン整数として返す。
+        # ２５６ビットのハッシュ値を生成する。
+        z = int.from_bytes(hsh, 'big')
+        return z
 
-
+    # インプットトランザクションを確認するための関数
+    def verify_input(self, input_index):
+        '''Returns whether the input has a valid signature'''
+        # 関連するインプットを取得する。
+        tx_in = self.tx_ins[input_index]
+        # 前のトランザクションのScriptPubKeyを取得する。
+        script_key = tx_in.script_pubkey(testnet = self.testnet)
+        # p2shアドレスかどうかで処理を分岐する。
+        if script_key.is_p2sh_script_pubkey() :
+            cmd = tx_in.script_sig.cmds[-1]
+            raw_redeem = encode_varient(len(cmd)) + cmd
+            # Redeem_scriptを生成する。
+            redeem_script = Script.parse(ByteIO(raw_redeem))
+        else :
+            redeem_script = None
+        # 署名ハッシュ値を取得する。
+        z = self.sig_hash(input_index, redeem_script) 
+        # ScriptSigとScriptPubKeyを結合してScriptを作成する。
+        script = tx_in.script_sig + script_key
+        # 署名検証を実行する。
+        return script.evaluate(z)
+    
 class TxIn:
 
     def __init__(self, prev_tx, prev_index, script_sig=None, sequence=0xffffffff):

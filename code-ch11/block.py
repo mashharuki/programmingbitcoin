@@ -112,18 +112,18 @@ class Block:
         # return whether this integer is less than the target
         return proof < self.target()
 
+    # マークルルートを検証する関数
     def validate_merkle_root(self):
-        '''Gets the merkle root of the tx_hashes and checks that it's
-        the same as the merkle root of this block.
-        '''
+        '''Gets the merkle root of the tx_hashes and checks that it's the same as the merkle root of this block.'''
         # reverse each item in self.tx_hashes
+        hashes = [h[::-1] for h in self.tx_hashes]
         # compute the Merkle Root and reverse
+        root = merkle_root(hashes)
         # return whether self.merkle_root is the same
-        raise NotImplementedError
-
+        return root[::-1] == self.merkle_root
 
 class BlockTest(TestCase):
-
+    
     def test_parse(self):
         block_raw = bytes.fromhex('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)

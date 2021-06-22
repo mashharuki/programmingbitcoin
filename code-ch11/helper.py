@@ -172,35 +172,44 @@ def calculate_new_bits(previous_bits, time_differential):
     # convert the new target to bits
     return target_to_bits(new_target)
 
-
+# 2つのハッシュ値を合成して親ハッシュ値を生成する関数
 def merkle_parent(hash1, hash2):
     '''Takes the binary hashes and calculates the hash256'''
-    # return the hash256 of hash1 + hash2
-    raise NotImplementedError
+    parent = hash256(hash1 + hash2)
+    return parent
 
-
+# マークルペアレントを計算する関数
 def merkle_parent_level(hashes):
-    '''Takes a list of binary hashes and returns a list that's half
-    the length'''
+    '''Takes a list of binary hashes and returns a list that's half the length'''
     # if the list has exactly 1 element raise an error
+    if len(hashes) == 1:
+        raise RuntimeError('Cannot take a parent level with only 1 item ')
     # if the list has an odd number of elements, duplicate the last one
+    if (len(hashes) % 2) == 1 :
+        # ハッシュの最後をコピーする
+        hashes.append(hashes[-1])
     # and put it at the end so it has an even number of elements
+    # 親ハッシュ値を格納する配列
+    parent_level = []
     # initialize next level
+    # 2つずつ進める。
     # loop over every pair (use: for i in range(0, len(hashes), 2))
-        # get the merkle parent of the hashes at index i and i+1
-        # append parent to parent level
-    # return parent level
-    raise NotImplementedError
+    for i in range(0, len(hashes), 2):
+        # マークルペアレントを計算する。
+        parent = merkle_parent(hashes[i], hashes[i+1])
+        parent_level.append(parent)
+    return parent_level
 
-
+# マークルルートを求める関数
 def merkle_root(hashes):
-    '''Takes a list of binary hashes and returns the merkle root
-    '''
+    '''Takes a list of binary hashes and returns the merkle root'''
     # current level starts as hashes
-    # loop until there's exactly 1 element
-        # current level becomes the merkle parent level
-    # return the 1st item of the current level
-    raise NotImplementedError
+    current_level = hashes
+    # マークルペアレントが1個以下になるまで繰り返す
+    while len(current_level) > 1:
+        # マークルペアレントを計算する。
+        current_level = merkle_parent_level(current_level)
+    return current_level[0]
 
 
 def bit_field_to_bytes(bit_field):

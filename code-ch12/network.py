@@ -311,13 +311,17 @@ class GetDataMessage:
         self.data.append((data_type, identifier))  # <2>
     # end::source1[]
 
+    # シリアライズするための関数
     def serialize(self):
         # start with the number of items as a varint
+        result = encode_varint(len(self.data))
         # loop through each tuple (data_type, identifier) in self.data
+        for data_type, identifier in self.data :
             # data type is 4 bytes Little-Endian
+            result += int_to_little_endian(data_type, 4)
             # identifier needs to be in Little-Endian
-        raise NotImplementedError
-
+            result +=  identifier[:: - 1] 
+        return result
 
 class GetDataMessageTest(TestCase):
 

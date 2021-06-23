@@ -107,13 +107,15 @@ class Tx:
     @classmethod
     def parse(cls, s, testnet=False):
         s.read(4)  # <1>
-        if s.read(1) == b'\x00':  # <2>
+        # 5バイト目が0であればSegwitである。
+        if s.read(1) == b'\x00':  
             parse_method = cls.parse_segwit
         else:
             parse_method = cls.parse_legacy
         s.seek(-5, 1)  # <3>
         return parse_method(s, testnet=testnet)
 
+    # 今までのトランザクション用のパース関数
     @classmethod
     def parse_legacy(cls, s, testnet=False):
         version = little_endian_to_int(s.read(4))   # <4>
@@ -128,9 +130,9 @@ class Tx:
         locktime = little_endian_to_int(s.read(4))
         return cls(version, inputs, outputs, locktime, 
                    testnet=testnet, segwit=False)
-    # end::source2[]
+    
 
-    # tag::source3[]
+    # Segwit適用後のトランザクション用のパース関数
     @classmethod
     def parse_segwit(cls, s, testnet=False):
         version = little_endian_to_int(s.read(4))
@@ -180,6 +182,7 @@ class Tx:
 
     def serialize_segwit(self):
         result = int_to_little_endian(self.version, 4)
+        # マーカーとフラグを追加する。
         result += b'\x00\x01'  # <2>
         result += encode_varint(len(self.tx_ins))
         for tx_in in self.tx_ins:
@@ -189,6 +192,7 @@ class Tx:
             result += tx_out.serialize()
         for tx_in in self.tx_ins:  # <3>
             result += int_to_little_endian(len(tx_in.witness), 1)
+            # witnessを最後にシリアライズする
             for item in tx_in.witness:
                 if type(item) == int:
                     result += int_to_little_endian(item, 1)
@@ -196,7 +200,6 @@ class Tx:
                     result += encode_varint(len(item)) + item
         result += int_to_little_endian(self.locktime, 4)
         return result
-    # end::source4[]
 
     def fee(self):
         '''Returns the fee of this transaction in satoshi'''
@@ -334,6 +337,7 @@ class Tx:
                 cmd = tx_in.witness[-1]
                 raw_witness = encode_varint(len(cmd)) + cmd
                 witness_script = Script.parse(BytesIO(raw_witness))
+                # トランザクションの署名ハッシュを算出する
                 z = self.sig_hash_bip143(input_index, witness_script=witness_script)
                 witness = tx_in.witness
             else:
